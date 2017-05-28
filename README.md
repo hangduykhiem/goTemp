@@ -15,11 +15,11 @@ NodeMCU
 - Add new temperature value via POST request to 
 `localhost:3333/value` with model
 
-```json
+```
 {
-  "index":1, // sensor index
-  "temp":"23", // current temperature
-  "hum":"43" // current humidity
+  "index" : 1, // sensor index
+  "temp" : "23", // current temperature
+  "hum" : "43" // current humidity
 }
 ```
 
