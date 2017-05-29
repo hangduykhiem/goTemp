@@ -10,6 +10,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/pressly/chi/render"
+	"github.com/pressly/chi/middleware"
 	"encoding/json"
 	"strconv"
 )
@@ -28,6 +29,7 @@ func main() {
 	// Init router
 	r := chi.NewRouter()
 	r.Use(render.SetContentType(render.ContentTypeJSON))
+	r.Use(middleware.Logger)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 
