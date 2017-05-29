@@ -11,6 +11,7 @@ import (
 
 	"github.com/pressly/chi/render"
 	"encoding/json"
+	"strconv"
 )
 
 var db *sql.DB
@@ -51,6 +52,7 @@ func ValueController() chi.Router {
 
 		r.Post("/", CreateValue)
 		r.Get("/", ListValue)
+		r.Get("/:sensorId", GetValue)
 	})
 
 	return r
@@ -85,6 +87,7 @@ func CreateValue(w http.ResponseWriter, r *http.Request) {
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS value(SensorId INT, Temp VARCHAR(50), Hum VARCHAR(50))")
 
 	if err != nil {
+		w.WriteHeader(500)
 		w.Write([]byte("500: Service unavailable"))
 		log.Panic(err)
 		return
@@ -95,11 +98,59 @@ func CreateValue(w http.ResponseWriter, r *http.Request) {
 	VALUES($1, $2, $3) RETURNING SensorId`, data.Index, data.Temp, data.Hum).Scan(&sensorId)
 
 	if err != nil {
+		w.WriteHeader(500)
 		w.Write([]byte("500: Service unavailable"))
 		log.Panic(err)
 		return
 	} else {
+		w.WriteHeader(200)
 		w.Write([]byte("200: Accept"))
+	}
+}
+
+func GetValue(w http.ResponseWriter, r *http.Request){
+	articleID := chi.URLParam(r, "sensorId")
+	i, err := strconv.Atoi(articleID)
+	if err != nil {
+		w.WriteHeader(404)
+		w.Write([]byte("404: Not found"))
+		return
+	}
+	rows, err := db.Query("SELECT * FROM value WHERE sensorid=$1", i)
+	valueList := make([]*Value, 0)
+
+	var index int
+	var hum string
+	var temp string
+
+	if rows != nil {
+
+		for rows.Next() {
+			err := rows.Scan(&index, &temp, &hum)
+
+			if err != nil {
+				w.WriteHeader(500)
+				w.Write([]byte("500: Service unavailable"))
+				return
+			}
+
+			valueList = append(valueList, &Value{index, temp, hum})
+		}
+
+		err = rows.Err()
+
+		if err != nil {
+			w.Write([]byte("500: Service unavailable"))
+		}
+
+	} else {
+		w.WriteHeader(404)
+		w.Write([]byte("404: Not Found"))
+	}
+
+	if err := render.RenderList(w, r, NewValueListResponse(valueList)); err != nil {
+		w.WriteHeader(500)
+		w.Write([]byte("500: Service unavailable"))
 	}
 }
 
@@ -117,6 +168,7 @@ func ListValue(w http.ResponseWriter, r *http.Request) {
 			err := rows.Scan(&index, &temp, &hum)
 
 			if err != nil {
+				w.WriteHeader(500)
 				w.Write([]byte("500: Service unavailable"))
 				return
 			}
@@ -127,6 +179,7 @@ func ListValue(w http.ResponseWriter, r *http.Request) {
 		err = rows.Err()
 
 		if err != nil {
+			w.WriteHeader(500)
 			w.Write([]byte("500: Service unavailable"))
 		}
 
@@ -135,6 +188,7 @@ func ListValue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := render.RenderList(w, r, NewValueListResponse(valueList)); err != nil {
+		w.WriteHeader(500)
 		w.Write([]byte("500: Service unavailable"))
 	}
 }
