@@ -24,7 +24,6 @@ NodeMCU
 ```
 
 ### Future feature
-- Query specific sensor
 - Implement paging for all value
 
 ### Technology use
