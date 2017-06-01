@@ -9,25 +9,21 @@ import (
 	"github.com/pressly/chi"
 	"github.com/pressly/chi/middleware"
 	"github.com/pressly/chi/render"
+	"goTemp/dbRepo"
+	"goTemp/model"
 	"log"
 	"net/http"
 	"strconv"
-	"goTemp/dbRepo"
-	"goTemp/model"
 )
 
-var db *dbRepo.PostgesTempDb
+type App struct {
+	db dbRepo.TempDb
+}
 
 func main() {
 
-	// Init
-	var err error
-	var postgres *sql.DB;
-	postgres, err = sql.Open("postgres", "postgresql://test:test@localhost:5432/testdb")
-	db = &dbRepo.PostgesTempDb{postgres}
-	if err != nil {
-		log.Fatal(err)
-	}
+	// Initdb
+	app, err := initApp()
 
 	// Init router
 	r := chi.NewRouter()
@@ -44,20 +40,31 @@ func main() {
 
 	})
 
-	r.Mount("/value", ValueController())
+	r.Mount("/value", ValueController(app))
 
 	http.ListenAndServe(":3333", r)
 }
 
-func ValueController() chi.Router {
+func initApp() (*App,error) {
+
+	postgres, err := sql.Open("postgres", "postgresql://test:test@localhost:5432/testdb")
+	db := &dbRepo.PostgesTempDb{postgres}
+	if err != nil {
+		return nil, err;
+	}
+
+	return &App{db:db}, nil
+}
+
+func ValueController(app *App) chi.Router {
 
 	r := chi.NewRouter()
 
 	r.Route("/", func(r chi.Router) {
 
-		r.Post("/", CreateValue)
-		r.Get("/", ListValue)
-		r.Get("/:sensorId", GetValue)
+		r.Post("/", app.CreateValueRoute)
+		r.Get("/", app.ListValuesRoute)
+		r.Get("/:sensorId", app.GetValueRoute)
 	})
 
 	return r
@@ -71,7 +78,7 @@ func NewValueListResponse(articles []*model.Value) []render.Renderer {
 	return list
 }
 
-func CreateValue(w http.ResponseWriter, r *http.Request) {
+func (app *App) CreateValueRoute(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	data := &model.Value{}
 	err := decoder.Decode(data)
@@ -79,7 +86,7 @@ func CreateValue(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	err = db.CreateValue(data)
+	err = app.db.CreateValue(data)
 
 	if err != nil {
 		w.WriteHeader(500)
@@ -92,7 +99,7 @@ func CreateValue(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func GetValue(w http.ResponseWriter, r *http.Request) {
+func (app *App) GetValueRoute(w http.ResponseWriter, r *http.Request) {
 	articleID := chi.URLParam(r, "sensorId")
 	i, err := strconv.Atoi(articleID)
 	if err != nil {
@@ -101,7 +108,7 @@ func GetValue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valueList, err := db.GetValue(i);
+	valueList, err := app.db.GetValue(i)
 
 	if err != nil {
 		w.WriteHeader(404)
@@ -114,9 +121,9 @@ func GetValue(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ListValue(w http.ResponseWriter, r *http.Request) {
+func (app *App) ListValuesRoute(w http.ResponseWriter, r *http.Request) {
 
-	valueList, err := db.ListValue();
+	valueList, err := app.db.ListValues()
 
 	if err != nil {
 		w.WriteHeader(404)

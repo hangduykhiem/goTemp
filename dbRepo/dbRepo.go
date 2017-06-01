@@ -16,7 +16,7 @@ type PostgesTempDb struct {
 	Db *sql.DB
 }
 
-func (t *PostgesTempDb) ListValue() ([]*model.Value, error) {
+func (t *PostgesTempDb) ListValues() ([]*model.Value, error) {
 	rows, err := t.Db.Query("SELECT * FROM value")
 
 	if err != nil {
